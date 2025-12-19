@@ -2,7 +2,7 @@
     "rewrites": [
       {
         "source": "/api/:path*",
-        "destination": "http://speedpack.pro-linuxpl.com:8080/NewLogistic/v2/:path*"
+        "destination": "http://speedpack.pro-linuxpl.com:8080/:path*"
       },
       {
         "source": "/(.*)",
