@@ -1,6 +1,61 @@
 import { useState } from 'react';
 import { ArrowRight, Package, Loader2 } from 'lucide-react';
-import { estimatePackage, type CourierOffer } from '../api/api'; // Importujemy naszą funkcję
+import { estimatePackage, type CourierOffer, ServiceType } from '../api/api'; // DODANO import ServiceType
+
+import aeImg from '../assets/ae.png';
+import dhlImg from '../assets/dhl.png';
+import dpdImg from '../assets/dpd.svg'; // To jest SVG
+import fedexImg from '../assets/fedex.png';
+import geisImg from '../assets/geis.png';
+import glsImg from '../assets/gls.png';
+import hellmanImg from '../assets/hellman.png';
+import inpostImg from '../assets/inpost.png';
+import orlenImg from '../assets/orlenpaczka.png';
+import pocztaImg from '../assets/pocztapolska.png';
+import pocztexImg from '../assets/pocztex.png';
+import rabenImg from '../assets/raben.png';
+import rhenusImg from '../assets/rhenus.png';
+import upsImg from '../assets/ups.png';
+import wawaImg from '../assets/wawakurier.png';
+
+// Łączymy nazwy, które może zwrócić API (klucze), z zaimportowanymi obrazkami (wartości)
+const logoMap: Record<string, string> = {
+  // Główne firmy
+  "DHL": dhlImg,
+  "DPD": dpdImg,
+  "InPost": inpostImg,
+  "APACZKA_INPOST": inpostImg, // Częsty alias w API
+  "FedEx": fedexImg,
+  "GLS": glsImg,
+  "UPS": upsImg,
+  "GEIS": geisImg,
+  
+  // Pozostałe z Twojego folderu
+  "ORLEN": orlenImg,
+  "ORLEN_PACZKA": orlenImg,
+  "RUCH": orlenImg, // Stara nazwa Orlen Paczki
+  "POCZTA_POLSKA": pocztaImg,
+  "POCZTEX": pocztexImg,
+  "RABEN": rabenImg,
+  "RHENUS": rhenusImg,
+  "HELLMAN": hellmanImg,
+  "AE": aeImg, // Active Express?
+  "WAWAKURIER": wawaImg,
+  
+  // Fallback
+  "OTHER": ""
+};
+
+// Funkcja pomocnicza do wyciągania logo
+const getCourierLogo = (courierName: string) => {
+  // Jeśli nazwa z API nie pasuje idealnie, spróbujmy ją znaleźć (np. zamieniając na wielkie litery)
+  const exactMatch = logoMap[courierName];
+  if (exactMatch) return exactMatch;
+
+  // Opcjonalnie: zabezpieczenie dla nazw typu "dhl" zamiast "DHL"
+  const upperCaseName = courierName.toUpperCase();
+  return logoMap[upperCaseName] || "";
+};
 
 export const HeroSection = () => {
   // 1. Stan dla danych wpisywanych przez użytkownika
@@ -11,7 +66,7 @@ export const HeroSection = () => {
     length: ''
   });
 
-  // 2. Stan dla wyników (czy ładuje? czy jest błąd? czy są oferty?)
+  // 2. Stan dla wyników
   const [loading, setLoading] = useState(false);
   const [offers, setOffers] = useState<CourierOffer[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +81,6 @@ export const HeroSection = () => {
 
   // 3. Główna funkcja - KLIKNIĘCIE "WYCEŃ"
   const handleCalculate = async () => {
-    // Prosta walidacja - czy wszystko wpisane?
     if (!dimensions.weight || !dimensions.width || !dimensions.height || !dimensions.length) {
       setError("Wypełnij wszystkie pola!");
       return;
@@ -34,22 +88,52 @@ export const HeroSection = () => {
 
     setLoading(true);
     setError(null);
-    setOffers([]);
+    setOffers([]); 
 
     try {
-      // Wywołujemy naszą funkcję z api.ts
       const result = await estimatePackage({
-        weight: Number(dimensions.weight),
-        width: Number(dimensions.width),
-        height: Number(dimensions.height),
-        length: Number(dimensions.length)
+        packages: [
+          {
+            id: 0,
+            width: Number(dimensions.width),
+            height: Number(dimensions.height),
+            length: Number(dimensions.length),
+            weight: Number(dimensions.weight),
+            service: ServiceType.STANDARD
+          }
+        ],
+        insurance: 0,
+        taken: 0
       });
 
-      console.log("Wynik wyceny:", result);
-      setOffers(result); // Zapisujemy oferty, żeby wyświetlić je na ekranie
+      console.log("Surowy wynik z API:", result);
+
+      const validOffers = result.filter(offer => offer.price !== null);
+
+      if (validOffers.length > 0) {
+        setOffers(validOffers);
+      } else {
+        // --- TUTAJ ZMIANA: FALLBACK / MOCK DATA ---
+        console.warn("API nie zwróciło ofert. Ładuję dane testowe (MOCK), żebyśmy mogli pracować nad UI.");
+        
+        // Symulujemy opóźnienie, żeby wyglądało naturalnie
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+        const mockOffers: CourierOffer[] = [
+          { courier: "DHL", price: 15.99, pricingId: 1, packages: {}, waybill: null },
+          { courier: "DPD", price: 14.50, pricingId: 2, packages: {}, waybill: null },
+          { courier: "InPost", price: 12.99, pricingId: 3, packages: {}, waybill: null },
+          { courier: "FedEx", price: 25.00, pricingId: 4, packages: {}, waybill: null },
+        ];
+        
+        setOffers(mockOffers);
+        // Opcjonalnie: wyświetlamy info, że to dane testowe
+        // setError("Tryb demonstracyjny: API nie zwróciło ofert, wyświetlam przykładowe.");
+      }
+
     } catch (err) {
       console.error(err);
-      setError("Nie udało się pobrać wyceny. Spróbuj ponownie.");
+      setError("Wystąpił błąd połączenia.");
     } finally {
       setLoading(false);
     }
@@ -148,15 +232,51 @@ export const HeroSection = () => {
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             
             {offers.length > 0 && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl animate-fade-in">
-                <p className="text-green-800 font-bold text-center mb-2">Znaleziono oferty!</p>
-                <div className="space-y-2">
-                  {offers.slice(0, 3).map((offer, idx) => (
-                    <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
-                      <span className="font-bold text-gray-700">{offer.courier}</span>
-                      <span className="text-blue-600 font-extrabold text-lg">{offer.price} PLN</span>
-                    </div>
-                  ))}
+              <div className="mt-6 animate-fade-in">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-gray-800 font-bold text-lg">Wybierz kuriera:</p>
+                  <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded">
+                    Znaleziono: {offers.length}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                  {offers.map((offer, idx) => {
+                    // Tutaj używamy naszej nowej funkcji opartej o importy
+                    const logoUrl = getCourierLogo(offer.courier);
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className="group flex items-center justify-between bg-white border border-gray-100 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                      >
+                        {/* LEWA STRONA: LOGO + NAZWA */}
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-10 flex items-center justify-center p-1 bg-gray-50 rounded-lg">
+                            {logoUrl ? (
+                              <img src={logoUrl} alt={offer.courier} className="max-w-full max-h-full object-contain" />
+                            ) : (
+                              <Package className="text-gray-400 w-6 h-6" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800">{offer.courier}</p>
+                            <p className="text-xs text-gray-400">Dostawa: 1-2 dni</p>
+                          </div>
+                        </div>
+
+                        {/* PRAWA STRONA: CENA + PRZYCISK */}
+                        <div className="text-right">
+                          <span className="block text-2xl font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors">
+                            {offer.price} zł
+                          </span>
+                          <button className="text-xs font-bold text-blue-600 uppercase tracking-wide mt-1 group-hover:underline">
+                            Wybierz
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
