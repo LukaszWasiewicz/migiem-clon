@@ -8,7 +8,7 @@ interface AddressFormProps {
   prefix: 'sender' | 'receiver'; // prefix, żeby rozróżnić inputy w DOM
 }
 
-export const AddressForm: React.FC<AddressFormProps> = ({ title, data, onChange, prefix }) => {
+export const AddressForm: React.FC<AddressFormProps> = ({ title, data, onChange }) => {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
       <h2 className="text-xl font-semibold mb-6 text-gray-800 border-b pb-2">{title}</h2>
