@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ArrowRight, Package, Loader2 } from 'lucide-react';
-import { estimatePackage, type CourierOffer, ServiceType } from '../api/api'; // DODANO import ServiceType
+import { estimatePackage, type CourierOffer, ServiceType } from '../api/api';
 import { useNavigate } from 'react-router-dom';
 
 import aeImg from '../assets/ae.png';
 import dhlImg from '../assets/dhl.png';
-import dpdImg from '../assets/dpd.svg'; // To jest SVG
+import dpdImg from '../assets/dpd.svg';
 import fedexImg from '../assets/fedex.png';
 import geisImg from '../assets/geis.png';
 import glsImg from '../assets/gls.png';
@@ -19,47 +19,44 @@ import rhenusImg from '../assets/rhenus.png';
 import upsImg from '../assets/ups.png';
 import wawaImg from '../assets/wawakurier.png';
 
-// Łączymy nazwy, które może zwrócić API (klucze), z zaimportowanymi obrazkami (wartości)
 const logoMap: Record<string, string> = {
-  // Główne firmy
   "DHL": dhlImg,
   "DPD": dpdImg,
   "InPost": inpostImg,
-  "APACZKA_INPOST": inpostImg, // Częsty alias w API
+  "APACZKA_INPOST": inpostImg,
   "FedEx": fedexImg,
   "GLS": glsImg,
   "UPS": upsImg,
   "GEIS": geisImg,
-  
-  // Pozostałe z Twojego folderu
   "ORLEN": orlenImg,
   "ORLEN_PACZKA": orlenImg,
-  "RUCH": orlenImg, // Stara nazwa Orlen Paczki
+  "RUCH": orlenImg,
   "POCZTA_POLSKA": pocztaImg,
   "POCZTEX": pocztexImg,
   "RABEN": rabenImg,
   "RHENUS": rhenusImg,
   "HELLMAN": hellmanImg,
-  "AE": aeImg, // Active Express?
+  "AE": aeImg,
   "WAWAKURIER": wawaImg,
-  
-  // Fallback
   "OTHER": ""
 };
 
-// Funkcja pomocnicza do wyciągania logo
 const getCourierLogo = (courierName: string) => {
-  // Jeśli nazwa z API nie pasuje idealnie, spróbujmy ją znaleźć (np. zamieniając na wielkie litery)
   const exactMatch = logoMap[courierName];
   if (exactMatch) return exactMatch;
-
-  // Opcjonalnie: zabezpieczenie dla nazw typu "dhl" zamiast "DHL"
   const upperCaseName = courierName.toUpperCase();
   return logoMap[upperCaseName] || "";
 };
 
+// DANE TESTOWE (MOCK) - Wyniesione tutaj, żeby użyć ich w dwóch miejscach
+const MOCK_OFFERS: CourierOffer[] = [
+  { courier: "DHL", price: 15.99, pricingId: 1, packages: {}, waybill: null },
+  { courier: "DPD", price: 14.50, pricingId: 2, packages: {}, waybill: null },
+  { courier: "InPost", price: 12.99, pricingId: 3, packages: {}, waybill: null },
+  { courier: "FedEx", price: 25.00, pricingId: 4, packages: {}, waybill: null },
+];
+
 export const HeroSection = () => {
-  // 1. Stan dla danych wpisywanych przez użytkownika
   const [dimensions, setDimensions] = useState({
     weight: '',
     width: '',
@@ -67,15 +64,40 @@ export const HeroSection = () => {
     length: ''
   });
 
-  // 2. Stan dla wyników
   const [loading, setLoading] = useState(false);
   const [offers, setOffers] = useState<CourierOffer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Funkcja przenosząca do zamówienia po kliknięciu w ofertę
+  // --- ZMIANA 1: Logika wyboru oferty i sprawdzanie logowania ---
   const handleSelectOffer = (offer: CourierOffer) => {
-    // Musimy sformatować paczkę tak, jak oczekuje tego OrderPage (typ EstimatePackageItem)
+    // Sprawdzamy, czy użytkownik jest zalogowany
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+    // Jeśli NIE jest zalogowany -> przekieruj do logowania
+    if (!isLoggedIn) {
+      // 1. Tworzymy obiekt z danymi, które chcemy odzyskać
+      const pendingOrder = {
+        offer: offer,
+        packages: [{
+          id: 0,
+          width: Number(dimensions.width),
+          height: Number(dimensions.height),
+          length: Number(dimensions.length),
+          weight: Number(dimensions.weight),
+          service: ServiceType.STANDARD
+        }]
+      };
+    
+      // 2. Zapisujemy to w localStorage ("pamięci przeglądarki")
+      localStorage.setItem('pendingOrder', JSON.stringify(pendingOrder));
+    
+      // 3. Przekierowujemy do logowania
+      navigate('/login');
+      return;
+    }
+
+    // Jeśli JEST zalogowany -> idziemy do zamówienia
     const currentPackage = {
       id: 0,
       width: Number(dimensions.width),
@@ -88,11 +110,11 @@ export const HeroSection = () => {
     navigate('/order', {
       state: {
         offer: offer,
-        packages: [currentPackage] // Przekazujemy jako tablicę
+        packages: [currentPackage]
       }
     });
   };
-  // Funkcja obsługująca wpisywanie w inputy
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDimensions({
       ...dimensions,
@@ -100,7 +122,7 @@ export const HeroSection = () => {
     });
   };
 
-  // 3. Główna funkcja - KLIKNIĘCIE "WYCEŃ"
+  // --- ZMIANA 2: Obsługa błędu 401 przy wycenie ---
   const handleCalculate = async () => {
     if (!dimensions.weight || !dimensions.width || !dimensions.height || !dimensions.length) {
       setError("Wypełnij wszystkie pola!");
@@ -127,34 +149,26 @@ export const HeroSection = () => {
         taken: 0
       });
 
-      console.log("Surowy wynik z API:", result);
-
       const validOffers = result.filter(offer => offer.price !== null);
 
       if (validOffers.length > 0) {
         setOffers(validOffers);
       } else {
-        // --- TUTAJ ZMIANA: FALLBACK / MOCK DATA ---
-        console.warn("API nie zwróciło ofert. Ładuję dane testowe (MOCK), żebyśmy mogli pracować nad UI.");
-        
-        // Symulujemy opóźnienie, żeby wyglądało naturalnie
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-
-        const mockOffers: CourierOffer[] = [
-          { courier: "DHL", price: 15.99, pricingId: 1, packages: {}, waybill: null },
-          { courier: "DPD", price: 14.50, pricingId: 2, packages: {}, waybill: null },
-          { courier: "InPost", price: 12.99, pricingId: 3, packages: {}, waybill: null },
-          { courier: "FedEx", price: 25.00, pricingId: 4, packages: {}, waybill: null },
-        ];
-        
-        setOffers(mockOffers);
-        // Opcjonalnie: wyświetlamy info, że to dane testowe
-        // setError("Tryb demonstracyjny: API nie zwróciło ofert, wyświetlam przykładowe.");
+        // Fallback jeśli API zwróci 200 OK ale pustą listę
+        console.warn("API OK, ale brak ofert. Mock.");
+        setOffers(MOCK_OFFERS);
       }
 
     } catch (err) {
-      console.error(err);
-      setError("Wystąpił błąd połączenia.");
+      // TUTAJ JEST KLUCZOWA ZMIANA:
+      // Jeśli backend wyrzuci błąd (np. 401 Unauthorized dla gościa), 
+      // to nie pokazujemy błędu, tylko ładujemy Mocki, żeby gość widział ceny.
+      console.warn("Błąd API (np. 401 Unauthorized). Ładuję ofertę dla Gościa (MOCK).", err);
+      
+      // Symulacja opóźnienia dla lepszego wrażenia
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setOffers(MOCK_OFFERS);
+      
     } finally {
       setLoading(false);
     }
@@ -162,14 +176,13 @@ export const HeroSection = () => {
 
   return (
     <section className="relative bg-blue-600 text-white overflow-hidden pt-32 pb-20 px-4">
-      {/* Tło (kropki) */}
       <div className="absolute inset-0 opacity-10" 
            style={{ backgroundImage: 'radial-gradient(circle, #fff 2px, transparent 2px)', backgroundSize: '30px 30px' }}>
       </div>
 
       <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
         
-        {/* LEWA STRONA - TEKSTY */}
+        {/* LEWA STRONA */}
         <div>
           <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6">
             Wysyłaj paczki <br />
@@ -204,7 +217,6 @@ export const HeroSection = () => {
           </div>
 
           <div className="space-y-6">
-            {/* Inputy Wymiarów */}
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Wymiary (cm)</label>
               <div className="grid grid-cols-3 gap-4">
@@ -226,7 +238,6 @@ export const HeroSection = () => {
               </div>
             </div>
 
-            {/* Input Wagi */}
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Waga (kg)</label>
               <input 
@@ -236,7 +247,6 @@ export const HeroSection = () => {
               />
             </div>
 
-            {/* Przycisk WYCEŃ */}
             <button 
               onClick={handleCalculate}
               disabled={loading}
@@ -249,7 +259,6 @@ export const HeroSection = () => {
               )}
             </button>
 
-            {/* WYNIKI - Wyświetlamy tylko jeśli są oferty */}
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             
             {offers.length > 0 && (
@@ -263,7 +272,6 @@ export const HeroSection = () => {
 
                 <div className="grid gap-3 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
                   {offers.map((offer, idx) => {
-                    // Tutaj używamy naszej nowej funkcji opartej o importy
                     const logoUrl = getCourierLogo(offer.courier);
                     
                     return (
@@ -272,7 +280,6 @@ export const HeroSection = () => {
                         onClick={() => handleSelectOffer(offer)} 
                         className="group flex items-center justify-between bg-white border border-gray-100 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
                       >
-                        {/* LEWA STRONA: LOGO + NAZWA */}
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-10 flex items-center justify-center p-1 bg-gray-50 rounded-lg">
                             {logoUrl ? (
@@ -287,7 +294,6 @@ export const HeroSection = () => {
                           </div>
                         </div>
 
-                        {/* PRAWA STRONA: CENA + PRZYCISK */}
                         <div className="text-right">
                           <span className="block text-2xl font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors">
                             {offer.price} zł

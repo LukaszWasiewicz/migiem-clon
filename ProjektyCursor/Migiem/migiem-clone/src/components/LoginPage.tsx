@@ -7,29 +7,24 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Stan formularza
   const [formData, setFormData] = useState({
     login: "",
     password: ""
   });
   
-  // Stan UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Sprawdzamy, czy przyszliśmy tu z Rejestracji z komunikatem sukcesu
   useEffect(() => {
     if (location.state?.message) {
       setSuccessMsg(location.state.message);
-      // Czyścimy stan historii, żeby komunikat nie wisiał po odświeżeniu
       window.history.replaceState({}, document.title);
     }
   }, [location]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Czyścimy błędy gdy user zaczyna pisać
     if (error) setError(null);
   };
 
@@ -44,26 +39,42 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // 1. Strzał do API
       const isSuccess = await loginUser(formData.login, formData.password);
       
-      // 2. Jeśli sukces
       if (isSuccess) {
-        console.log("✅ Zalogowano pomyślnie (Sesja Cookie ustawiona)");
-        
-        // Opcjonalnie: Ustawiamy flagę w localStorage tylko dla UI (żeby wiedzieć że user jest zalogowany)
-        // Ale prawdziwe uwierzytelnianie dzieje się teraz w tle przez Cookie
+        console.log("✅ Zalogowano pomyślnie");
         localStorage.setItem('isLoggedIn', 'true');
         
-        // 3. Przekieruj na główną
+        // --- NOWA LOGIKA: SPRAWDZANIE ZAWIESZONEGO ZAMÓWIENIA ---
+        const pendingOrderJson = localStorage.getItem('pendingOrder');
+        
+        if (pendingOrderJson) {
+            console.log("📦 Wykryto zawieszone zamówienie. Przywracanie...");
+            try {
+                const pendingOrder = JSON.parse(pendingOrderJson);
+                
+                // Czyścimy pendingOrder z localStorage, żeby nie wisiał tam wiecznie
+                localStorage.removeItem('pendingOrder');
+
+                // Przekierowujemy do OrderPage z odzyskanymi danymi
+                navigate('/order', { state: pendingOrder });
+                return; // Ważne: return, żeby nie wykonało się navigate('/') poniżej
+
+            } catch (parseError) {
+                console.error("Błąd odczytu zawieszonego zamówienia:", parseError);
+                localStorage.removeItem('pendingOrder'); // Usuwamy uszkodzone dane
+            }
+        }
+
+        // Standardowe przekierowanie (jeśli nie było zamówienia)
         navigate('/');
+        
       } else {
         setError("Niepoprawny login lub hasło.");
       }
 
     } catch (err: any) {
       console.error("Błąd logowania:", err);
-      // Obsługa błędów z API
       if (err.response?.status === 401 || err.response?.status === 403) {
         setError("Niepoprawny login lub hasło.");
       } else {
@@ -76,7 +87,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex bg-slate-50">
-      {/* LEWA STRONA - DEKORACYJNA */}
+      {/* LEWA STRONA */}
       <div className="hidden lg:flex w-1/2 bg-blue-600 text-white flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-700 to-blue-900 opacity-90"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -102,9 +113,8 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* PRAWA STRONA - FORMULARZ */}
+      {/* PRAWA STRONA */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative">
-        {/* Przycisk powrotu na mobile */}
         <Link to="/" className="absolute top-8 right-8 text-slate-400 hover:text-slate-600 lg:hidden">
             Powrót
         </Link>
@@ -118,7 +128,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Komunikaty Błędów / Sukcesu */}
           {successMsg && (
             <div className="p-3 bg-green-50 text-green-700 text-sm rounded-lg border border-green-200 flex items-center gap-2">
               <Truck className="w-4 h-4" /> {successMsg}
@@ -132,7 +141,6 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Login */}
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Login</label>
               <div className="relative">
@@ -148,7 +156,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Hasło */}
             <div className="space-y-1">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-medium text-slate-700">Hasło</label>
@@ -167,7 +174,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Przycisk */}
             <button
               type="submit"
               disabled={isLoading}
@@ -182,7 +188,6 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* Link do rejestracji */}
             <p className="text-center text-sm text-slate-500 pt-2">
               Nie masz konta?{" "}
               <Link to="/register" className="font-medium text-blue-600 hover:underline">
