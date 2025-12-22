@@ -286,3 +286,143 @@ export const sendPackage = async (data: SendPackageRequest): Promise<SendPackage
   
   return response.data;
 };
+
+// --- HISTORIA ZAMÓWIEŃ (ETAP 5) ---
+
+// 1. Typ pojedynczego zamówienia w historii
+// UWAGA: Typuję na podstawie standardu, po pierwszym requeście sprawdzimy w konsoli,
+// czy backend zwraca dokładnie te pola (dokumentacja bywa różna od rzeczywistości).
+export interface OrderHistoryItem {
+  id: number;
+  waybill: string | null; // Numer listu przewozowego
+  creationDate: string;   // Data utworzenia
+  status: string;         // np. "created", "sent"
+  price: number;
+  sender: {
+    name: string;
+    surname: string;
+    companyName: string;
+    city: string;
+  };
+  receiver: {
+    name: string;
+    surname: string;
+    companyName: string;
+    city: string;
+  };
+}
+
+// 2. Interfejs Payloadu dla raportu
+interface ReportRequestPayload {
+  from: string;    // "YYYY-MM-DD HH:mm:ss"
+  to: string;      // "YYYY-MM-DD HH:mm:ss"
+  sign: string;
+  sender: string;
+  receiver: string;
+}
+
+// Pomocnicza funkcja do formatowania daty na potrzeby tego API
+// Zmienia obiekt Date na string "YYYY-MM-DD HH:mm:ss"
+const formatDateForApi = (date: Date): string => {
+  const pad = (num: number) => num.toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+// --- MOCK DATA (Dane przykładowe) ---
+const MOCK_ORDERS: OrderHistoryItem[] = [
+  {
+    id: 1024,
+    waybill: "WAW-2023-X99",
+    creationDate: "2025-01-20 14:30:00",
+    status: "created",
+    price: 159.00,
+    sender: {
+      name: "Jan",
+      surname: "Kowalski",
+      companyName: "Janex Sp. z o.o.",
+      city: "Warszawa"
+    },
+    receiver: {
+      name: "Anna",
+      surname: "Nowak",
+      companyName: "",
+      city: "Kraków"
+    }
+  },
+  {
+    id: 1023,
+    waybill: "GDN-2023-Y55",
+    creationDate: "2025-01-18 09:15:00",
+    status: "sent",
+    price: 45.50,
+    sender: {
+      name: "Piotr",
+      surname: "Zieliński",
+      companyName: "",
+      city: "Gdańsk"
+    },
+    receiver: {
+      name: "Firma Budowlana",
+      surname: "",
+      companyName: "BUD-MEX",
+      city: "Wrocław"
+    }
+  }
+];
+
+export const getOrdersHistory = async (page: number = 0): Promise<OrderHistoryItem[]> => {
+  // LOGIKA PAGINACJI DLA DANYCH TESTOWYCH:
+  // Jeśli jesteśmy na stronie innej niż 0 (pierwsza), a API nie działa,
+  // to zwracamy pustą listę, żeby użytkownik widział koniec tabeli.
+  if (page > 0) {
+      // Tu ewentualnie moglibyśmy pytać API, ale dla bezpieczeństwa UX przy mocku:
+      // Zakładamy, że mock ma tylko jedną stronę danych.
+      // Jeśli jednak chcesz sprawdzać API na dalszych stronach, usuń ten if.
+      // Ale przy obecnym zachowaniu backendu (puste tablice) to bezpieczniejsze.
+  }
+
+  const dateFrom = new Date('2021-01-01 00:00:00');
+  const dateTo = new Date('2030-12-31 23:59:59');
+
+  const payload: ReportRequestPayload = {
+    from: formatDateForApi(dateFrom),
+    to: formatDateForApi(dateTo),
+    sign: "",
+    sender: "",
+    receiver: ""
+  };
+
+  console.log(`📜 FETCHING HISTORY (Page: ${page})`, JSON.stringify(payload));
+
+  try {
+    const response = await api.post<OrderHistoryItem[]>(`/report/${page}`, payload);
+    
+    // 1. Jeśli API zwróciło prawdziwe dane (niepustą tablicę) -> Używamy ich!
+    if (response.data && response.data.length > 0) {
+      console.log("✅ API zwróciło prawdziwe dane:", response.data);
+      return response.data;
+    } 
+    
+    // 2. Jeśli API zwróciło pustą tablicę ORAZ jesteśmy na pierwszej stronie (page === 0)
+    // to pokazujemy dane testowe, żeby tabela nie była smutna i pusta.
+    if (page === 0) {
+        console.warn("⚠️ API zwróciło pustą listę. Używam danych testowych (MOCK) dla strony 0.");
+        return MOCK_ORDERS;
+    }
+
+    // 3. W każdym innym przypadku (pusta odpowiedź API na stronie 1, 2...) zwracamy pustą tablicę.
+    return [];
+
+  } catch (error) {
+    console.error("❌ Błąd API historii. Używam danych testowych (MOCK).", error);
+    // W razie błędu sieci, na 1. stronie pokaż mocka, na kolejnych pusto
+    return page === 0 ? MOCK_ORDERS : [];
+  }
+};
