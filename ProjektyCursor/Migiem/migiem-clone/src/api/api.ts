@@ -10,7 +10,25 @@ export const api = axios.create({
   },
   withCredentials: true,
 });
-
+// --- INTERCEPTOR BŁĘDÓW (NOWOŚĆ) ---
+// To sprawi, że jeśli API zwróci błąd 401 (np. token wygasł), 
+// użytkownik zostanie automatycznie przeniesiony do logowania.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn("🔒 Sesja wygasła. Przekierowanie do logowania...");
+      // Opcjonalnie: wyczyść localStorage jeśli tam trzymasz token
+      // localStorage.removeItem('token'); 
+      
+      // Przekierowanie (native window.location jest najpewniejsze przy axiosie poza komponentem Reacta)
+      if (window.location.pathname !== '/login') {
+         window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 export interface AuthResponse {
   jwt: string; 
 }
@@ -425,4 +443,32 @@ export const getOrdersHistory = async (page: number = 0): Promise<OrderHistoryIt
     // W razie błędu sieci, na 1. stronie pokaż mocka, na kolejnych pusto
     return page === 0 ? MOCK_ORDERS : [];
   }
+};
+// --- DOSTĘPNOŚĆ ODBIORU (PICKUPS) ---
+// 1. Szczegóły pojedynczego "slotu" odbioru
+export interface PickupDetails {
+  service: string;   // np. "INPOST"
+  timefrom: string;  // np. "09:00"
+  timeto: string;    // np. "16:00"
+  interval: number;  // np. 4 (minimalne okno czasowe w godzinach)
+}
+
+// 2. Odpowiedź z API: Mapa gdzie kluczem jest data (YYYY-MM-DD), a wartością szczegóły
+export type PickupResponse = Record<string, PickupDetails>;
+
+// 3. Funkcja pobierająca dostępność
+export const getAvailablePickups = async (courier: string, zipCode: string): Promise<PickupResponse> => {
+  // Dla bezpieczeństwa czyścimy kod pocztowy z myślników, jeśli API tego wymaga
+  // (bazując na logice z registerUser)
+  const cleanZip = zipCode.replace(/-/g, "");
+
+  console.log(`📅 Checking pickups for ${courier} at ${cleanZip}`);
+
+  const response = await api.get<PickupResponse>(`/courier/${courier}/pickups`, {
+    params: {
+      zipCode: cleanZip
+    }
+  });
+
+  return response.data;
 };
