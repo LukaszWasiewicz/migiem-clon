@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, Package, Loader2 } from 'lucide-react';
 import { estimatePackage, type CourierOffer, ServiceType } from '../api/api'; // DODANO import ServiceType
+import { useNavigate } from 'react-router-dom';
 
 import aeImg from '../assets/ae.png';
 import dhlImg from '../assets/dhl.png';
@@ -70,7 +71,27 @@ export const HeroSection = () => {
   const [loading, setLoading] = useState(false);
   const [offers, setOffers] = useState<CourierOffer[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
+  // Funkcja przenosząca do zamówienia po kliknięciu w ofertę
+  const handleSelectOffer = (offer: CourierOffer) => {
+    // Musimy sformatować paczkę tak, jak oczekuje tego OrderPage (typ EstimatePackageItem)
+    const currentPackage = {
+      id: 0,
+      width: Number(dimensions.width),
+      height: Number(dimensions.height),
+      length: Number(dimensions.length),
+      weight: Number(dimensions.weight),
+      service: ServiceType.STANDARD
+    };
+
+    navigate('/order', {
+      state: {
+        offer: offer,
+        packages: [currentPackage] // Przekazujemy jako tablicę
+      }
+    });
+  };
   // Funkcja obsługująca wpisywanie w inputy
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDimensions({
@@ -247,7 +268,8 @@ export const HeroSection = () => {
                     
                     return (
                       <div 
-                        key={idx} 
+                        key={idx}
+                        onClick={() => handleSelectOffer(offer)} 
                         className="group flex items-center justify-between bg-white border border-gray-100 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
                       >
                         {/* LEWA STRONA: LOGO + NAZWA */}

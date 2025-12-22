@@ -190,3 +190,99 @@ export const estimatePackage = async (data: EstimateRequestData): Promise<Courie
   const response = await api.post<CourierOffer[]>('/courier/estimate', payload);
   return response.data;
 };
+
+// --- ZAMÓWIENIA (ETAP 4) ---
+
+// 1. Interfejs adresu (używany w formularzu Nadawcy i Odbiorcy)
+export interface AddressData {
+  companyName: string;
+  name: string;
+  surname: string;
+  email: string;
+  phone: string;
+  street: string;
+  houseNumber: string;
+  apartmentNumber: string;
+  postalCode: string;
+  city: string;
+  countryCode: string;
+}
+
+// 2. Payload wysyłany przy tworzeniu zamówienia
+// Rozszerzamy logikę: bierzemy paczki, wybranego kuriera i adresy
+export interface SendPackageRequest {
+  pricingId: number;
+  courier: string; // np. "DHL", "INPOST" - to co użytkownik wybrał z listy ofert
+  packages: EstimatePackageItem[]; // Te same paczki, które wycenialiśmy wcześniej
+  sender: AddressData;
+  receiver: AddressData;
+  // Opcjonalnie możemy tu przekazać usługi dodatkowe, jeśli są wymagane przy finalizacji
+  insurance?: number;
+  content?: string; // Opis zawartości paczki
+}
+
+// 3. Odpowiedź z backendu po utworzeniu zamówienia
+export interface SendPackageResponse {
+  orderId: string;
+  waybill: string | null; // Numer listu przewozowego
+  status: 'created' | 'error';
+  trackingUrl?: string;
+}
+
+// 4. Funkcja wysyłająca zamówienie
+export const sendPackage = async (data: SendPackageRequest): Promise<SendPackageResponse> => {
+  console.log("🚀 SEND PACKAGE PAYLOAD:", JSON.stringify(data));
+  const mapAddressToApiFormat = (addr: AddressData) => ({
+    name: addr.name,
+    surname: addr.surname,
+    street: addr.street,
+    houseNr: addr.houseNumber,       // Zmiana nazwy pola
+    placeNr: addr.apartmentNumber || "", // Zmiana nazwy pola
+    phone: addr.phone,
+    email: addr.email,
+    companyName: addr.companyName || "",
+    nip: "",
+    isCompany: false,
+    city: {                          // Zagnieżdżony obiekt
+      cityName: addr.city,
+      zipCode: addr.postalCode,
+      country: "Polska"              // Hardcoded lub z addr.countryCode
+    }
+  });
+
+  const payload = {
+    packages: data.packages, // Paczki wysyłamy tak jak są (wymiary)
+    sender: mapAddressToApiFormat(data.sender),
+    receiver: mapAddressToApiFormat(data.receiver),
+    // Pola dodatkowe wymagane przez dokumentację (domyślne wartości)
+    sign: "klient",
+    description: "brak",
+    insurance: 0.0,
+    taken: 0.0,
+    receptionNotification: false,
+    givingNotification: false,
+    confirmation: false,
+    unloading: false,
+    glass: false,
+    saturday: false,
+    posteRestante: false,
+    sms: false,
+    checkPackage: false,
+    adr: false,
+    log: false,
+    thirdPart: false
+  };
+
+  console.log("🚀 FINAL PAYLOAD (Correct Structure):", JSON.stringify(payload));
+  console.log("🔑 PRICING ID:", data.pricingId);
+  
+  // WAŻNE: 'Required long parameter pricingId' oznacza zazwyczaj parametr w URL
+  // Dlatego dodajemy params: { pricingId: ... }
+  const response = await api.post<SendPackageResponse>('/courier/send', payload, {
+    params: {
+      pricingId: data.pricingId
+    }
+  });
+  
+  return response.data;
+};

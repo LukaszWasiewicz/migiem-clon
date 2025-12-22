@@ -8,6 +8,7 @@ import EcommerceIntegrations from "./components/EcommerceIntegrations"
 import Footer from "./components/Footer"
 import RegisterPage from "./components/RegisterPage"; // <--- Import
 import LoginPage from "./components/LoginPage";
+import OrderPage from './components/OrderPage';
 
 // Komponent strony głównej (to co miałeś w App wcześniej)
 const HomePage = () => (
@@ -37,6 +38,9 @@ function App() {
            
            {/* Strona logowania */}
            <Route path="/login" element={<LoginPage />} />
+
+           {/* Strona finalizacji zamówienia */}
+           <Route path="/order" element={<OrderPage />} />
         </Routes>
       </div>
     </BrowserRouter>
