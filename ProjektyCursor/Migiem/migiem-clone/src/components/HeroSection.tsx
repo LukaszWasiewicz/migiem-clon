@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Package, Loader2 } from 'lucide-react';
 import { estimatePackage, type CourierOffer, ServiceType } from '../api/api';
 import { useNavigate } from 'react-router-dom';
+import { formatCourierName } from '../utils/formatters';
 
 import aeImg from '../assets/ae.png';
 import dhlImg from '../assets/dhl.png';
@@ -289,7 +290,7 @@ export const HeroSection = () => {
                             )}
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800">{offer.courier}</p>
+                            <p className="font-bold text-gray-800">{formatCourierName(offer.courier)}</p>
                             <p className="text-xs text-gray-400">Dostawa: 1-2 dni</p>
                           </div>
                         </div>

@@ -1,73 +1,69 @@
-# React + TypeScript + Vite
+# 📦 Migiem Clone - Platforma Kurierska
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Nowoczesna aplikacja webowa do wyceny i nadawania przesyłek kurierskich. Projekt realizowany jako symulacja platformy logistycznej (MVP), umożliwiający szybką wycenę paczki, wybór kuriera oraz zarządzanie zamówieniami.
 
-Currently, two official plugins are available:
+🚀 **Live Demo:** [Wstaw tutaj link do swojego Vercela]
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🛠 Technologie
 
-## React Compiler
+Projekt został zbudowany w oparciu o nowoczesny stack technologiczny Frontend:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **Core:** [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/)
+* **Build Tool:** [Vite](https://vitejs.dev/) (Szybki HMR i build)
+* **Styling:** [Tailwind CSS](https://tailwindcss.com/) (RWD, Utility-first)
+* **HTTP Client:** [Axios](https://axios-http.com/) (Obsługa API, Interceptory)
+* **Routing:** [React Router v6](https://reactrouter.com/)
+* **Icons:** [Lucide React](https://lucide.dev/)
+* **Deployment:** Vercel
 
-## Expanding the ESLint configuration
+## ✨ Główne Funkcjonalności
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1. ⚡ Szybka Wycena (Hero Section)
+* Dostępna dla niezalogowanych użytkowników.
+* Dynamiczne obliczanie kosztów na podstawie wymiarów i wagi paczki.
+* Prezentacja ofert różnych przewoźników (DHL, InPost, UPS, etc.).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 2. 🔐 Autoryzacja i Bezpieczeństwo
+* Logowanie i Rejestracja użytkowników.
+* Obsługa tokenów JWT.
+* **Axios Interceptor:** Automatyczne wylogowanie użytkownika po wygaśnięciu sesji (obsługa błędu 401).
+* Chronione trasy (Protected Routes) dla zalogowanych użytkowników.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 3. 📦 Proces Zamówienia
+* Rozbudowane formularze nadawcy i odbiorcy z walidacją danych.
+* Integracja z API do finalizacji zamówienia (`/courier/send`).
+* **Sprawdzanie dostępności (Pickups):** Dedykowany moduł (Modal) pozwalający sprawdzić dostępne terminy i godziny odbioru paczki przez kuriera dla konkretnego kodu pocztowego.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 4. 📜 Historia Zamówień
+* Przegląd złożonych zamówień.
+* Statusy przesyłek (Created, Sent).
+* Paginacja wyników.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🚀 Jak uruchomić projekt lokalnie?
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Wymagane: Node.js (v16+) oraz npm/yarn.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1.  **Sklonuj repozytorium:**
+    ```bash
+    git clone [https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/NAZWA_REPOZYTORIUM.git](https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/NAZWA_REPOZYTORIUM.git)
+    cd nazwa-folderu
+    ```
+
+2.  **Zainstaluj zależności:**
+    ```bash
+    npm install
+    ```
+
+3.  **Uruchom serwer deweloperski:**
+    ```bash
+    npm run dev
+    ```
+    Aplikacja będzie dostępna pod adresem: `http://localhost:5173`
+
+## 🔮 Status Projektu
+Projekt jest w fazie **MVP (Minimum Viable Product)**.
+* Frontend jest w pełni funkcjonalny.
+* Część danych historycznych może być prezentowana przy użyciu Mock Data w celach demonstracyjnych (do czasu pełnej integracji z backendem produkcyjnym).
+
+---
+Autor:

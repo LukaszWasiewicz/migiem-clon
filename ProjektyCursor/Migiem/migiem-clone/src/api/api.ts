@@ -357,7 +357,7 @@ const formatDateForApi = (date: Date): string => {
 const MOCK_ORDERS: OrderHistoryItem[] = [
   {
     id: 1024,
-    waybill: "WAW-2023-X99",
+    waybill: "311926",
     creationDate: "2025-01-20 14:30:00",
     status: "created",
     price: 159.00,
@@ -471,4 +471,44 @@ export const getAvailablePickups = async (courier: string, zipCode: string): Pro
   });
 
   return response.data;
+};
+
+// --- ZAMAWIANIE PODJAZDU (PICKUP) - ETAP 6 ---
+export interface OrderPickupResponse {
+  id: number;
+  courier: string;
+  price: number;
+  pickupDateFrom: string; // "YYYY-MM-DD HH:mm:ss"
+  pickupDateTo: string;   // "YYYY-MM-DD HH:mm:ss"
+}
+
+export const orderPickup = async (waybillId: string, from: string, to: string): Promise<OrderPickupResponse> => {
+  // Format from/to musi być: YYYY-MM-DD HH:mm
+  console.log(`🚚 Ordering pickup for waybill: ${waybillId}, from: ${from}, to: ${to}`);
+  
+  // Axios automatycznie parsuje JSON z odpowiedzi na obiekt zgodny z interfejsem
+  const response = await api.post<OrderPickupResponse>(
+    `/courier/pickup/${waybillId}/order`, 
+    null, // Body puste
+    {
+      params: { from, to } // Query params
+    }
+  );
+  return response.data;
+};
+
+// --- ETYKIETY (DODATEK) ---
+
+export const getLabel = async (waybillId: string, labelType: 'PDF' | 'ZPL' = 'PDF'): Promise<string> => {
+  console.log(`🖨️ Downloading label for ${waybillId} (${labelType})`);
+  
+  // Oczekujemy tablicy z Base64: ["JVBERi0xLjQKJe..."]
+  const response = await api.get<string[]>(`/courier/${waybillId}/label/${labelType}`);
+
+  // Zwracamy pierwszy element tablicy (czyli nasz ciąg Base64)
+  if (response.data && response.data.length > 0) {
+    return response.data[0];
+  }
+  
+  throw new Error("Pusta odpowiedź z serwera (brak etykiety)");
 };
