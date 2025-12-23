@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  type CourierOffer, type EstimatePackageItem, type AddressData, sendPackage, orderPickup,
+  type CourierOffer, type EstimatePackageItem, addToAddressBook, type AddressData, sendPackage, orderPickup,
   getSender
 } from '../api/api';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { AddressBookModal } from './AddressBookModal';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2, BookOpen, Save } from 'lucide-react';
 import { AddressForm } from './AddressForm';
 import { PickupAvailabilityModal } from './PickupAvailabilityModal';
 import { formatCourierName } from '../utils/formatters';
@@ -57,6 +58,32 @@ const OrderPage: React.FC = () => {
   // Status zamawiania podjazdu
   const [pickupStatus, setPickupStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [pickupErrorMsg, setPickupErrorMsg] = useState('');
+
+  // Stan dla modala książki adresowej
+  const [isAddressBookOpen, setIsAddressBookOpen] = useState(false);
+
+  // Funkcja obsługująca wybór z modala
+  const handleSelectFromBook = (address: AddressData) => {
+    setReceiver(address); // Nadpisujemy dane odbiorcy wybranym adresem
+    // Opcjonalnie: alert("Wczytano dane z książki!");
+  };
+
+  // Funkcja zapisująca obecnego odbiorcę do książki
+  const handleSaveToBook = async () => {
+    // Prosta walidacja przed zapisem
+    if (!receiver.name || !receiver.city || !receiver.street) {
+      alert("Wypełnij przynajmniej nazwisko, ulicę i miasto, aby zapisać.");
+      return;
+    }
+
+    try {
+      await addToAddressBook(receiver);
+      alert("✅ Adres został dodany do książki adresowej!");
+    } catch (error) {
+      console.error("Błąd zapisu adresu:", error);
+      alert("Nie udało się zapisać adresu.");
+    }
+  };
 
   useEffect(() => {
     const fetchDefaultSender = async () => {
@@ -220,21 +247,21 @@ const OrderPage: React.FC = () => {
 
       // 3. Próba wysyłki do API
       await orderPickup(createdWaybillId, formattedFrom, formattedTo);
-      
+
       setPickupStatus('success');
 
     } catch (err: any) {
       console.error("🔥 Błąd orderPickup:", err);
-      
+
       // --- SYMULACJA SUKCESU DLA TESTOWEGO ID ---
       // To wykona się TYLKO jeśli walidacja godzin przeszła (jesteśmy w catch po próbie API),
       // a błąd wynika z tego, że API nie przyjmuje ID typu "TEST-..."
       if (createdWaybillId.startsWith('TEST-')) {
         console.warn("⚠️ API odrzuciło fake ID (to normalne). Symuluję sukces dla UI.");
         setTimeout(() => setPickupStatus('success'), 500);
-        return; 
+        return;
       }
-      
+
       // Obsługa błędu dla prawdziwych ID (np. awaria serwera)
       const msg = err.response?.data?.message || err.message || "Błąd podczas zamawiania podjazdu.";
       setPickupErrorMsg(msg);
@@ -372,8 +399,9 @@ const OrderPage: React.FC = () => {
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* LEWA KOLUMNA - FORMULARZE */}
+          {/* ... LEWA KOLUMNA - FORMULARZE ... */}
           <div className="lg:col-span-2 space-y-6">
+
             <AddressForm
               title="Dane Nadawcy"
               data={sender}
@@ -381,12 +409,38 @@ const OrderPage: React.FC = () => {
               prefix="sender"
             />
 
-            <AddressForm
-              title="Dane Odbiorcy"
-              data={receiver}
-              onChange={handleReceiverChange}
-              prefix="receiver"
-            />
+            {/* --- SEKCJA ODBIORCY Z DODATKAMI --- */}
+            <div className="relative">
+              {/* Przycisk otwierający książkę (Unoszący się nad formularzem lub po prostu nad nim) */}
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => setIsAddressBookOpen(true)}
+                  className="flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                >
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Wybierz z książki adresowej
+                </button>
+              </div>
+
+              <AddressForm
+                title="Dane Odbiorcy"
+                data={receiver}
+                onChange={handleReceiverChange}
+                prefix="receiver"
+              />
+
+              {/* Przycisk zapisu do książki (pod formularzem) */}
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={handleSaveToBook}
+                  className="flex items-center text-xs text-gray-500 hover:text-green-600 transition-colors"
+                  title="Zapisz wpisane dane do swojej książki adresowej na przyszłość"
+                >
+                  <Save className="w-3 h-3 mr-1" />
+                  Zapisz tego odbiorcę w książce
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* PRAWA KOLUMNA - PODSUMOWANIE */}
@@ -472,6 +526,12 @@ const OrderPage: React.FC = () => {
         onClose={() => setIsPickupModalOpen(false)}
         courier={state.offer.courier}
         zipCode={sender.postalCode}
+      />
+
+      <AddressBookModal
+        isOpen={isAddressBookOpen}
+        onClose={() => setIsAddressBookOpen(false)}
+        onSelect={handleSelectFromBook}
       />
 
     </div>

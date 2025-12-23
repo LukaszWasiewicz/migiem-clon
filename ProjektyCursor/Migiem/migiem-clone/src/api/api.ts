@@ -596,3 +596,58 @@ export const getPackageTracking = async (waybill: string): Promise<TrackingRespo
     };
   }
 };
+
+// --- KSIĄŻKA ADRESOWA (ADDRESS BOOK) ---
+
+// 1. Element książki adresowej (to co przychodzi z GET)
+export interface AddressBookItem {
+  id: number;
+  name: string;
+  surname: string;
+  companyName: string;
+  email: string;
+  phone: string;
+  street: string;
+  houseNr: string;
+  placeNr: string;
+  nip: string;
+  city: {
+    cityName: string;
+    zipCode: string;
+    country: string;
+    // Opcjonalnie mogą być tu pola formattingowe, ale te 3 są kluczowe
+  };
+}
+
+// 2. Pobieranie listy adresów
+export const getAddressBook = async (): Promise<AddressBookItem[]> => {
+  console.log("📖 Fetching address book...");
+  const response = await api.get<AddressBookItem[]>('/address-book');
+  return response.data;
+};
+
+// 3. Dodawanie nowego adresu
+// Wykorzystamy AddressData z formularza, ale musimy go przemapować na strukturę API
+export const addToAddressBook = async (data: AddressData): Promise<AddressBookItem> => {
+  console.log("💾 Saving to address book...", data);
+
+  const payload = {
+    name: data.name,
+    surname: data.surname,
+    street: data.street,
+    houseNr: data.houseNumber,
+    placeNr: data.apartmentNumber || "",
+    phone: data.phone,
+    email: data.email,
+    companyName: data.companyName || "",
+    nip: data.nip || "",
+    city: {
+      cityName: data.city,
+      zipCode: data.postalCode.replace(/-/g, ""), // Czyścimy kod pocztowy do formatu API
+      country: "Polska"
+    }
+  };
+
+  const response = await api.post<AddressBookItem>('/address-book', payload);
+  return response.data;
+};
