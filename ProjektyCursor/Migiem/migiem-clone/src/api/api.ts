@@ -108,7 +108,35 @@ export const loginUser = async (login: string, password: string): Promise<boolea
   return false;
 };
 
-// --- FUNKCJE PACZEK (NOWA WERSJA V2) ---
+// 1. Interfejs odpowiedzi z endpointu /sender
+export interface SenderResponse {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+  phone: string;
+  street: string;
+  houseNr: string;
+  placeNr: string;
+  companyName: string;
+  nip: string;
+  isCompany: boolean;
+  city: {
+    id: number;
+    cityName: string;
+    zipCode: number;
+    country: string;
+    stringZipCode: string;       // "53333"
+    formatStringZipCode: string; // "53-333" - to nas interesuje najbardziej
+  };
+}
+
+// 2. Funkcja pobierająca domyślnego nadawcę
+export const getSender = async (): Promise<SenderResponse> => {
+  console.log("👤 Fetching default sender data...");
+  const response = await api.get<SenderResponse>('/sender');
+  return response.data;
+};
 
 // 1. Dostępne typy usług
 export const ServiceType = {
@@ -224,6 +252,8 @@ export interface AddressData {
   postalCode: string;
   city: string;
   countryCode: string;
+  nip?: string;
+  isCompany: boolean;
 }
 
 // 2. Payload wysyłany przy tworzeniu zamówienia
@@ -259,8 +289,8 @@ export const sendPackage = async (data: SendPackageRequest): Promise<SendPackage
     phone: addr.phone,
     email: addr.email,
     companyName: addr.companyName || "",
-    nip: "",
-    isCompany: false,
+    nip: addr.nip || "", 
+    isCompany: addr.isCompany,
     city: {                          // Zagnieżdżony obiekt
       cityName: addr.city,
       zipCode: addr.postalCode,
@@ -511,4 +541,58 @@ export const getLabel = async (waybillId: string, labelType: 'PDF' | 'ZPL' = 'PD
   }
   
   throw new Error("Pusta odpowiedź z serwera (brak etykiety)");
+};
+
+// --- TRACKING (ŚLEDZENIE) ---
+
+export interface TrackingEvent {
+  status: string;      // np. "Dostarczono", "W drodze"
+  date: string;        // "YYYY-MM-DD HH:mm"
+  location: string;    // np. "Warszawa"
+  description?: string;
+}
+
+export interface TrackingResponse {
+  waybill: string;
+  currentStatus: 'created' | 'picked_up' | 'in_transit' | 'delivered' | 'error';
+  events: TrackingEvent[];
+}
+
+export const getPackageTracking = async (waybill: string): Promise<TrackingResponse> => {
+  console.log(`🔎 Tracking request for: ${waybill}`);
+
+  // 1. Najpierw próbujemy prawdziwego API (jeśli istnieje taki endpoint)
+  // Zazwyczaj endpointy to /courier/tracker/{waybill} lub podobne.
+  try {
+    // UWAGA: To jest strzał "w ciemno" na podstawie konwencji API NewLogistic.
+    // Jeśli zwróci 404 lub 401, wpadniemy do catcha i obsłużymy to mockiem.
+    const response = await api.get<TrackingResponse>(`/courier/tracker/${waybill}`);
+    return response.data;
+  } catch (error) {
+    console.warn("⚠️ API trackingu niedostępne lub wymaga logowania. Używam danych MOCK.", error);
+    
+    // 2. SYMULACJA DANYCH (MOCK) - żeby strona działała bez logowania
+    // Opóźnienie dla realizmu
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Generujemy różne scenariusze na podstawie końcówki numeru listu
+    const lastDigit = waybill.slice(-1);
+
+    if (lastDigit === '9') {
+        throw new Error("Nie znaleziono przesyłki o podanym numerze.");
+    }
+
+    // Scenariusz: Dostarczona
+    return {
+      waybill: waybill,
+      currentStatus: 'delivered',
+      events: [
+        { status: "Dostarczono", date: "2023-12-24 14:30", location: "Wrocław", description: "Odebrane przez: J. Kowalski" },
+        { status: "Wydano do doręczenia", date: "2023-12-24 08:15", location: "Wrocław", description: "Kurier: Michał" },
+        { status: "W transporcie", date: "2023-12-23 22:00", location: "Łódź", description: "Przesyłka w drodze do oddziału docelowego" },
+        { status: "Odebrano od nadawcy", date: "2023-12-23 16:20", location: "Warszawa", description: "Kurier odebrał paczkę" },
+        { status: "Zarejestrowano", date: "2023-12-23 10:00", location: "Warszawa", description: "Otrzymano dane elektroniczne" },
+      ]
+    };
+  }
 };

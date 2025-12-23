@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { type CourierOffer, type EstimatePackageItem, type AddressData, sendPackage, orderPickup} from '../api/api';
+import {
+  type CourierOffer, type EstimatePackageItem, type AddressData, sendPackage, orderPickup,
+  getSender
+} from '../api/api';
 import { ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { AddressForm } from './AddressForm';
 import { PickupAvailabilityModal } from './PickupAvailabilityModal';
@@ -23,7 +26,9 @@ const initialAddress: AddressData = {
   apartmentNumber: '',
   postalCode: '',
   city: '',
-  countryCode: 'PL'
+  countryCode: 'PL',
+  nip: '',
+  isCompany: false
 };
 
 const OrderPage: React.FC = () => {
@@ -43,29 +48,67 @@ const OrderPage: React.FC = () => {
   const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
   // --- NOWE STANY: PODJAZD KURIERA ---
   const [createdWaybillId, setCreatedWaybillId] = useState<string | null>(null);
-  
+
   // Formularz podjazdu
   const [pickupDate, setPickupDate] = useState('');
   const [pickupTimeFrom, setPickupTimeFrom] = useState('');
   const [pickupTimeTo, setPickupTimeTo] = useState('');
-  
+
   // Status zamawiania podjazdu
   const [pickupStatus, setPickupStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [pickupErrorMsg, setPickupErrorMsg] = useState('');
 
   useEffect(() => {
-    if (!state) navigate('/');
-  }, [state, navigate]);
+    const fetchDefaultSender = async () => {
+      try {
+        const data = await getSender();
+
+        console.log("✅ Pobranno dane nadawcy:", data);
+
+        // Mapowanie danych z API (zagnieżdżonych) na płaski stan formularza
+        setSender(prevSender => ({
+          ...prevSender, // zachowujemy ewentualne inne pola (bezpiecznik)
+          name: data.name,
+          surname: data.surname,
+          companyName: data.companyName,
+          email: data.email,
+          phone: data.phone,
+          street: data.street,
+          // API zwraca houseNr -> my mamy houseNumber
+          houseNumber: data.houseNr,
+          // API zwraca placeNr -> my mamy apartmentNumber
+          apartmentNumber: data.placeNr,
+          // Wyciągamy miasto z obiektu
+          city: data.city.cityName,
+          // Bierzemy sformatowany kod (np. "53-333") dla lepszego UX
+          postalCode: data.city.formatStringZipCode || data.city.stringZipCode,
+          countryCode: "PL",
+          isCompany: data.isCompany,
+          nip: data.nip || ""
+        }));
+
+      } catch (error) {
+        // Cicha porażka - jeśli API zwróci błąd (np. 404 brak danych), 
+        // po prostu zostawiamy pusty formularz. Nie blokujemy użytkownika.
+        console.warn("ℹ️ Nie udało się pobrać domyślnego nadawcy (może to nowe konto?):", error);
+      }
+    };
+
+    fetchDefaultSender();
+  }, []);
 
   if (!state) return null;
 
   // Obsługa zmian w inputach
   const handleSenderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSender({ ...sender, [e.target.name]: e.target.value });
+    // Sprawdzamy typ inputa: checkbox ? checked : value
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setSender({ ...sender, [e.target.name]: value });
   };
 
   const handleReceiverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setReceiver({ ...receiver, [e.target.name]: e.target.value });
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setReceiver({ ...receiver, [e.target.name]: value });
   };
 
   // 1. Funkcja pomocnicza: Czyści dane przed wysłaniem
@@ -91,6 +134,12 @@ const OrderPage: React.FC = () => {
   const handleOrderSubmit = async () => {
     if (!sender.name || !sender.email || !receiver.name || !receiver.city) {
       alert("Proszę uzupełnić dane adresowe!");
+      return;
+    }
+
+    // 2. --- NOWA WALIDACJA NIP ---
+    if (sender.isCompany && !sender.nip) {
+      alert("Dla kont firmowych numer NIP jest wymagany!");
       return;
     }
 
@@ -130,15 +179,15 @@ const OrderPage: React.FC = () => {
       }
 
       // Zapisujemy ten (prawdziwy lub sztuczny) numer do stanu
-      setCreatedWaybillId(finalWaybill); 
+      setCreatedWaybillId(finalWaybill);
       setOrderStatus('success');
 
     } catch (error: any) {
       console.error("🔥 Błąd wysyłki:", error);
       if (error.response) {
-         alert(`Błąd API: ${error.response.status}`);
+        alert(`Błąd API: ${error.response.status}`);
       } else {
-         alert("Wystąpił błąd połączenia.");
+        alert("Wystąpił błąd połączenia.");
       }
       setOrderStatus('error');
     } finally {
@@ -151,23 +200,25 @@ const OrderPage: React.FC = () => {
     e.preventDefault();
     if (!createdWaybillId) return;
 
+    // 1. Formatowanie
+    const formattedFrom = `${pickupDate} ${pickupTimeFrom}`;
+    const formattedTo = `${pickupDate} ${pickupTimeTo}`;
+
+    // 2. WALIDACJA (PRZED blokiem try/catch!)
+    // Dzięki temu błąd logiczny nie wpadnie do catcha, który symuluje sukces dla fake ID.
+    if (formattedFrom >= formattedTo) {
+      setPickupErrorMsg("Godzina 'do' musi być późniejsza niż 'od'.");
+      setPickupStatus('error');
+      return; // 🛑 STOP - nie idziemy dalej
+    }
+
     setPickupStatus('loading');
     setPickupErrorMsg('');
 
     try {
-      // 1. Formatowanie ZGODNE Z DOKUMENTACJĄ (bez sekund!)
-      // Format: YYYY-MM-DD HH:mm
-      const formattedFrom = `${pickupDate} ${pickupTimeFrom}`;
-      const formattedTo = `${pickupDate} ${pickupTimeTo}`;
-
-      // Walidacja logiczna
-      if (formattedFrom >= formattedTo) {
-        throw new Error("Godzina 'do' musi być późniejsza niż 'od'.");
-      }
-
       console.log(`📤 Wysyłam orderPickup: waybill=${createdWaybillId}, from=${formattedFrom}, to=${formattedTo}`);
 
-      // 2. Próba wysyłki do API
+      // 3. Próba wysyłki do API
       await orderPickup(createdWaybillId, formattedFrom, formattedTo);
       
       setPickupStatus('success');
@@ -175,16 +226,16 @@ const OrderPage: React.FC = () => {
     } catch (err: any) {
       console.error("🔥 Błąd orderPickup:", err);
       
-      // --- SYMULACJA SUKCESU (MOCK) ---
-      // Konieczna, bo używamy ID typu "TEST-...", a backend oczekuje liczby (np. 311926).
-      // To zawsze wyrzuci błąd 400 przy parsowaniu ID, nawet jak datę mamy dobrą.
+      // --- SYMULACJA SUKCESU DLA TESTOWEGO ID ---
+      // To wykona się TYLKO jeśli walidacja godzin przeszła (jesteśmy w catch po próbie API),
+      // a błąd wynika z tego, że API nie przyjmuje ID typu "TEST-..."
       if (createdWaybillId.startsWith('TEST-')) {
         console.warn("⚠️ API odrzuciło fake ID (to normalne). Symuluję sukces dla UI.");
         setTimeout(() => setPickupStatus('success'), 500);
         return; 
       }
       
-      // Obsługa błędu dla prawdziwych ID
+      // Obsługa błędu dla prawdziwych ID (np. awaria serwera)
       const msg = err.response?.data?.message || err.message || "Błąd podczas zamawiania podjazdu.";
       setPickupErrorMsg(msg);
       setPickupStatus('error');
@@ -195,7 +246,7 @@ const OrderPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-2xl w-full text-center">
-          
+
           {/* Sekcja Sukcesu Zamówienia */}
           <div className="mb-8 border-b pb-8">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -212,12 +263,12 @@ const OrderPage: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
               🚚 Zamów podjazd kuriera
             </h3>
-            
+
             {pickupStatus === 'success' ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
                 <p className="text-green-800 font-bold text-lg mb-2">Podjazd został zamówiony!</p>
                 <p className="text-green-700">
-                  Kurier {formatCourierName(state.offer.courier)} odbierze paczkę: <br/>
+                  Kurier {formatCourierName(state.offer.courier)} odbierze paczkę: <br />
                   <strong>{pickupDate}</strong> między <strong>{pickupTimeFrom}</strong> a <strong>{pickupTimeTo}</strong>.
                 </p>
                 <button onClick={() => navigate('/')} className="mt-6 text-green-700 underline hover:text-green-900">
@@ -244,7 +295,7 @@ const OrderPage: React.FC = () => {
                       className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                  
+
                   {/* Godzina OD */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Godzina od</label>
@@ -288,10 +339,10 @@ const OrderPage: React.FC = () => {
                   >
                     {pickupStatus === 'loading' ? <Loader2 className="animate-spin" /> : 'Zamów kuriera'}
                   </button>
-                  
-                  <button 
+
+                  <button
                     type="button"
-                    onClick={() => navigate('/')} 
+                    onClick={() => navigate('/')}
                     className="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium"
                   >
                     Pominę to

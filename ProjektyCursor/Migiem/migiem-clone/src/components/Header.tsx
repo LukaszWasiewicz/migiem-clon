@@ -29,7 +29,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b bg-white shadow-sm font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          
+
           {/* Logo */}
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2">
@@ -46,7 +46,7 @@ export default function Header() {
             <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Dla Firm
             </Link>
-            <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
+            <Link to="/tracking" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Tracking
             </Link>
             <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
@@ -60,17 +60,17 @@ export default function Header() {
               // WERSJA ZALOGOWANA
               <>
                 {/* Zmiana: Link do Historii Zamówień zamiast statycznego tekstu */}
-                <Link 
-                  to="/orders" 
+                <Link
+                  to="/orders"
                   className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium mr-2 transition-colors group"
                 >
-                    <div className="bg-blue-50 group-hover:bg-blue-100 p-2 rounded-full transition-colors">
-                        <Package className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <span>Moje Zamówienia</span>
+                  <div className="bg-blue-50 group-hover:bg-blue-100 p-2 rounded-full transition-colors">
+                    <Package className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <span>Moje Zamówienia</span>
                 </Link>
 
-                <button 
+                <button
                   onClick={handleLogout}
                   className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
                 >
@@ -96,7 +96,7 @@ export default function Header() {
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
+          <button
             className="md:hidden text-gray-700 p-2"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
@@ -112,27 +112,27 @@ export default function Header() {
             <Link to="/" className="text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Oferta</Link>
             <Link to="/" className="text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Dla Firm</Link>
             <hr className="border-gray-100" />
-            
+
             {isLoggedIn ? (
-                <>
-                  {/* Link mobilny do zamówień */}
-                  <Link 
-                    to="/orders" 
-                    className="text-gray-700 font-medium flex items-center gap-2"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                     <Package className="w-5 h-5 text-blue-600" /> Moje Zamówienia
-                  </Link>
-                  
-                  <button onClick={handleLogout} className="text-red-600 font-medium flex items-center gap-2">
-                    <LogOut className="w-5 h-5" /> Wyloguj się
-                  </button>
-                </>
+              <>
+                {/* Link mobilny do zamówień */}
+                <Link
+                  to="/orders"
+                  className="text-gray-700 font-medium flex items-center gap-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Package className="w-5 h-5 text-blue-600" /> Moje Zamówienia
+                </Link>
+
+                <button onClick={handleLogout} className="text-red-600 font-medium flex items-center gap-2">
+                  <LogOut className="w-5 h-5" /> Wyloguj się
+                </button>
+              </>
             ) : (
-                <>
-                    <Link to="/login" className="text-gray-700 font-medium" onClick={() => setIsMenuOpen(false)}>Zaloguj</Link>
-                    <Link to="/register" className="text-blue-600 font-medium" onClick={() => setIsMenuOpen(false)}>Załóż konto</Link>
-                </>
+              <>
+                <Link to="/login" className="text-gray-700 font-medium" onClick={() => setIsMenuOpen(false)}>Zaloguj</Link>
+                <Link to="/register" className="text-blue-600 font-medium" onClick={() => setIsMenuOpen(false)}>Załóż konto</Link>
+              </>
             )}
           </nav>
         </div>

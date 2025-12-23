@@ -10,6 +10,7 @@ import RegisterPage from "./components/RegisterPage"; // <--- Import
 import LoginPage from "./components/LoginPage";
 import OrderPage from './components/OrderPage';
 import OrdersHistoryPage from './components/OrdersHistoryPage';
+import TrackingPage from './components/TrackingPage';
 
 // Komponent strony głównej (to co miałeś w App wcześniej)
 const HomePage = () => (
@@ -44,6 +45,8 @@ function App() {
            <Route path="/order" element={<OrderPage />} />
            
            <Route path="/orders" element={<OrdersHistoryPage />} />
+
+           <Route path="/tracking" element={<TrackingPage />} />
         </Routes>
       </div>
     </BrowserRouter>

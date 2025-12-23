@@ -1,31 +1,74 @@
 import React from 'react';
 import { type AddressData } from '../api/api';
+import { Building2, User } from 'lucide-react'; // Opcjonalnie: ikony dla lepszego wyglądu
 
 interface AddressFormProps {
   title: string;
   data: AddressData;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  prefix: 'sender' | 'receiver'; // prefix, żeby rozróżnić inputy w DOM
+  prefix: 'sender' | 'receiver';
 }
 
-export const AddressForm: React.FC<AddressFormProps> = ({ title, data, onChange }) => {
+export const AddressForm: React.FC<AddressFormProps> = ({ title, data, onChange, prefix }) => {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-      <h2 className="text-xl font-semibold mb-6 text-gray-800 border-b pb-2">{title}</h2>
+      <div className="flex justify-between items-center mb-6 border-b pb-2">
+        <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
+        {/* Ikona zależna od typu (opcjonalny smaczek wizualny) */}
+        {data.isCompany ? <Building2 className="text-blue-500 w-5 h-5" /> : <User className="text-gray-400 w-5 h-5" />}
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        {/* --- NOWOŚĆ: CHECKBOX FIRMA --- */}
+        <div className="md:col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center mb-2">
+          <input
+            type="checkbox"
+            id={`${prefix}-isCompany`}
+            name="isCompany"
+            checked={data.isCompany}
+            onChange={onChange}
+            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+          />
+          <label 
+            htmlFor={`${prefix}-isCompany`} 
+            className="ml-3 text-sm font-medium text-gray-700 cursor-pointer select-none"
+          >
+            To jest konto firmowe (wymagany NIP)
+          </label>
+        </div>
+
         {/* Imię i Nazwisko / Firma */}
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Imię i nazwisko / Nazwa firmy</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {data.isCompany ? "Nazwa Firmy" : "Imię i nazwisko"}
+          </label>
           <input
             type="text"
-            name="name" // Mapuje się na pole w AddressData
+            name="name"
             value={data.name}
             onChange={onChange}
             className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-            placeholder="np. Jan Kowalski"
+            placeholder={data.isCompany ? "np. Trans-Pol Sp. z o.o." : "np. Jan Kowalski"}
           />
         </div>
+
+        {/* --- NOWOŚĆ: POLE NIP (WIDOCZNE TYLKO DLA FIRM) --- */}
+        {data.isCompany && (
+          <div className="md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-300">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              NIP <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="nip"
+              value={data.nip || ''}
+              onChange={onChange}
+              className="w-full bg-white border border-blue-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+              placeholder="np. 1234567890"
+            />
+          </div>
+        )}
 
         {/* Email */}
         <div>
