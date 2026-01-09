@@ -6,11 +6,12 @@ import TargetAudience from "./components/TargetAudience"
 import GlobalShipping from "./components/GlobalShipping"
 import EcommerceIntegrations from "./components/EcommerceIntegrations"
 import Footer from "./components/Footer"
-import RegisterPage from "./components/RegisterPage"; // <--- Import
+import RegisterPage from "./components/RegisterPage";
 import LoginPage from "./components/LoginPage";
 import OrderPage from './components/OrderPage';
 import OrdersHistoryPage from './components/OrdersHistoryPage';
 import TrackingPage from './components/TrackingPage';
+import { MaterialsPage } from './components/MaterialsPage';
 
 // Komponent strony głównej (to co miałeś w App wcześniej)
 const HomePage = () => (
@@ -47,6 +48,8 @@ function App() {
            <Route path="/orders" element={<OrdersHistoryPage />} />
 
            <Route path="/tracking" element={<TrackingPage />} />
+
+           <Route path="/materials" element={<MaterialsPage />} />
         </Routes>
       </div>
     </BrowserRouter>

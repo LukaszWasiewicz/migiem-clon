@@ -1,69 +1,46 @@
-# 📦 Migiem Clone - Platforma Kurierska
+# Migiem Clone - Platforma Kurierska (Frontend)
 
-Nowoczesna aplikacja webowa do wyceny i nadawania przesyłek kurierskich. Projekt realizowany jako symulacja platformy logistycznej (MVP), umożliwiający szybką wycenę paczki, wybór kuriera oraz zarządzanie zamówieniami.
+Projekt rekrutacyjny implementujący interfejs aplikacji dla firmy kurierskiej. Aplikacja umożliwia pełny proces nadawania przesyłek, od wyceny, przez formularz zamówienia, aż po śledzenie paczki.
 
-🚀 **Live Demo:** [Wstaw tutaj link do swojego Vercela]
+## 🚀 Funkcjonalności
 
-## 🛠 Technologie
+Projekt pokrywa 100% wymagań dokumentacji API, w tym:
 
-Projekt został zbudowany w oparciu o nowoczesny stack technologiczny Frontend:
+* **Autoryzacja:** Logowanie i Rejestracja użytkowników (JWT).
+* **Wycena:** Dynamiczny kalkulator kosztów przesyłki w zależności od wymiarów.
+* **Zamówienia:**
+    * Zaawansowany formularz z walidacją.
+    * **Autouzupełnianie:** Pobieranie domyślnego nadawcy z profilu.
+    * Obsługa firm (walidacja NIP).
+* **Książka Adresowa:** Zapisywanie i wybieranie odbiorców (CRUD).
+* **Usługi Kurierskie:** Zamawianie podjazdu kuriera, pobieranie etykiet (PDF/ZPL).
+* **Tracking:** Publiczna strona śledzenia przesyłki z osią czasu (Timeline).
+* **Historia:** Przeglądanie złożonych zamówień.
 
-* **Core:** [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/)
-* **Build Tool:** [Vite](https://vitejs.dev/) (Szybki HMR i build)
-* **Styling:** [Tailwind CSS](https://tailwindcss.com/) (RWD, Utility-first)
-* **HTTP Client:** [Axios](https://axios-http.com/) (Obsługa API, Interceptory)
-* **Routing:** [React Router v6](https://reactrouter.com/)
-* **Icons:** [Lucide React](https://lucide.dev/)
-* **Deployment:** Vercel
+## 🛠️ Stack Technologiczny
 
-## ✨ Główne Funkcjonalności
+* **Core:** React 18, TypeScript, Vite
+* **Styling:** Tailwind CSS
+* **HTTP Client:** Axios (z interceptorami do obsługi sesji)
+* **Routing:** React Router DOM
+* **Icons:** Lucide React
 
-### 1. ⚡ Szybka Wycena (Hero Section)
-* Dostępna dla niezalogowanych użytkowników.
-* Dynamiczne obliczanie kosztów na podstawie wymiarów i wagi paczki.
-* Prezentacja ofert różnych przewoźników (DHL, InPost, UPS, etc.).
+## 📦 Instalacja i Uruchomienie
 
-### 2. 🔐 Autoryzacja i Bezpieczeństwo
-* Logowanie i Rejestracja użytkowników.
-* Obsługa tokenów JWT.
-* **Axios Interceptor:** Automatyczne wylogowanie użytkownika po wygaśnięciu sesji (obsługa błędu 401).
-* Chronione trasy (Protected Routes) dla zalogowanych użytkowników.
-
-### 3. 📦 Proces Zamówienia
-* Rozbudowane formularze nadawcy i odbiorcy z walidacją danych.
-* Integracja z API do finalizacji zamówienia (`/courier/send`).
-* **Sprawdzanie dostępności (Pickups):** Dedykowany moduł (Modal) pozwalający sprawdzić dostępne terminy i godziny odbioru paczki przez kuriera dla konkretnego kodu pocztowego.
-
-### 4. 📜 Historia Zamówień
-* Przegląd złożonych zamówień.
-* Statusy przesyłek (Created, Sent).
-* Paginacja wyników.
-
-## 🚀 Jak uruchomić projekt lokalnie?
-
-Wymagane: Node.js (v16+) oraz npm/yarn.
-
-1.  **Sklonuj repozytorium:**
+1.  Sklonuj repozytorium:
     ```bash
-    git clone [https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/NAZWA_REPOZYTORIUM.git](https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/NAZWA_REPOZYTORIUM.git)
-    cd nazwa-folderu
+    git clone [https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/migiem-clone.git](https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/migiem-clone.git)
     ```
-
-2.  **Zainstaluj zależności:**
+2.  Zainstaluj zależności:
     ```bash
     npm install
     ```
-
-3.  **Uruchom serwer deweloperski:**
+3.  Uruchom serwer deweloperski:
     ```bash
     npm run dev
     ```
-    Aplikacja będzie dostępna pod adresem: `http://localhost:5173`
 
-## 🔮 Status Projektu
-Projekt jest w fazie **MVP (Minimum Viable Product)**.
-* Frontend jest w pełni funkcjonalny.
-* Część danych historycznych może być prezentowana przy użyciu Mock Data w celach demonstracyjnych (do czasu pełnej integracji z backendem produkcyjnym).
+## ⚙️ Konfiguracja API
 
----
-Autor:
+Aplikacja łączy się z zewnętrznym API. Konfiguracja znajduje się w pliku `src/api/api.ts`.
+Proxy zostało skonfigurowane w `vite.config.ts` w celu uniknięcia problemów z CORS.

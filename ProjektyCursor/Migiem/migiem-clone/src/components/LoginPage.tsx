@@ -66,8 +66,16 @@ export default function LoginPage() {
             }
         }
 
-        // Standardowe przekierowanie (jeśli nie było zamówienia)
-        navigate('/');
+        const shouldRedirectToMaterials = localStorage.getItem('openCheckoutAfterLogin');
+        
+        if (shouldRedirectToMaterials) {
+            // Czyścimy flagę, żeby nie przekierowywało nas tam wiecznie
+            localStorage.removeItem('openCheckoutAfterLogin');
+            navigate('/materials');
+        } else {
+            // Standardowe przekierowanie
+            navigate('/');
+        }
         
       } else {
         setError("Niepoprawny login lub hasło.");

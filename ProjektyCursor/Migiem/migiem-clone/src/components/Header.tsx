@@ -46,6 +46,9 @@ export default function Header() {
             <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Dla Firm
             </Link>
+            <Link to="/materials" className="text-gray-600 hover:text-blue-600 transition-colors font-medium flex items-center gap-1">
+              Materiały
+            </Link>
             <Link to="/tracking" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Tracking
             </Link>
@@ -111,6 +114,10 @@ export default function Header() {
           <nav className="flex flex-col gap-4">
             <Link to="/" className="text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Oferta</Link>
             <Link to="/" className="text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Dla Firm</Link>
+            <Link to="/materials" className="text-gray-600 font-medium flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
+              Materiały
+              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Sklep</span>
+            </Link>
             <hr className="border-gray-100" />
 
             {isLoggedIn ? (
