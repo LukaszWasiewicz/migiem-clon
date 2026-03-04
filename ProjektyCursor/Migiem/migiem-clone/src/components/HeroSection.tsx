@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, Package, Loader2 } from 'lucide-react';
-import { estimatePackage, type CourierOffer, ServiceType } from '../api/api';
+import { estimatePackage, getSender, type CourierOffer, ServiceType } from '../api/api';
 import { useNavigate } from 'react-router-dom';
 import { formatCourierName } from '../utils/formatters';
 
@@ -48,14 +48,6 @@ const getCourierLogo = (courierName: string) => {
   const upperCaseName = courierName.toUpperCase();
   return logoMap[upperCaseName] || "";
 };
-
-// DANE TESTOWE (MOCK) - Wyniesione tutaj, żeby użyć ich w dwóch miejscach
-const MOCK_OFFERS: CourierOffer[] = [
-  { courier: "DHL", price: 15.99, pricingId: 1, packages: {}, waybill: null },
-  { courier: "DPD", price: 14.50, pricingId: 2, packages: {}, waybill: null },
-  { courier: "InPost", price: 12.99, pricingId: 3, packages: {}, waybill: null },
-  { courier: "FedEx", price: 25.00, pricingId: 4, packages: {}, waybill: null },
-];
 
 export const HeroSection = () => {
   const [dimensions, setDimensions] = useState({
@@ -135,6 +127,34 @@ export const HeroSection = () => {
     setOffers([]); 
 
     try {
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      let estimateSender: Record<string, unknown> = {};
+
+      if (isLoggedIn) {
+        try {
+          const sender = await getSender();
+          estimateSender = {
+            name: sender.name,
+            surname: sender.surname,
+            street: sender.street,
+            houseNr: sender.houseNr,
+            placeNr: sender.placeNr,
+            phone: sender.phone,
+            email: sender.email,
+            companyName: sender.companyName,
+            nip: sender.nip,
+            isCompany: sender.isCompany,
+            city: {
+              cityName: sender.city.cityName,
+              zipCode: String(sender.city.stringZipCode || sender.city.zipCode),
+              country: sender.city.country || 'Polska'
+            }
+          };
+        } catch (senderError) {
+          console.warn('Nie udało się pobrać danych nadawcy do wyceny. Kontynuuję bez nich.', senderError);
+        }
+      }
+
       const result = await estimatePackage({
         packages: [
           {
@@ -146,6 +166,8 @@ export const HeroSection = () => {
             service: ServiceType.STANDARD
           }
         ],
+        sender: estimateSender,
+        receiver: estimateSender,
         insurance: 0,
         taken: 0
       });
@@ -155,21 +177,13 @@ export const HeroSection = () => {
       if (validOffers.length > 0) {
         setOffers(validOffers);
       } else {
-        // Fallback jeśli API zwróci 200 OK ale pustą listę
-        console.warn("API OK, ale brak ofert. Mock.");
-        setOffers(MOCK_OFFERS);
+        setError("Brak dostępnych ofert dla podanych parametrów.");
       }
 
-    } catch (err) {
-      // TUTAJ JEST KLUCZOWA ZMIANA:
-      // Jeśli backend wyrzuci błąd (np. 401 Unauthorized dla gościa), 
-      // to nie pokazujemy błędu, tylko ładujemy Mocki, żeby gość widział ceny.
-      console.warn("Błąd API (np. 401 Unauthorized). Ładuję ofertę dla Gościa (MOCK).", err);
-      
-      // Symulacja opóźnienia dla lepszego wrażenia
-      await new Promise(resolve => setTimeout(resolve, 600));
-      setOffers(MOCK_OFFERS);
-      
+    } catch (err: any) {
+      console.warn("Błąd API podczas wyceny.", err);
+      const apiMessage = err?.response?.data?.error || err?.response?.data?.message;
+      setError(apiMessage || "Nie udało się pobrać ofert z serwera.");
     } finally {
       setLoading(false);
     }

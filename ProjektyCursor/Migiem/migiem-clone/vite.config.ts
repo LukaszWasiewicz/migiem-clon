@@ -7,9 +7,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://speedpack.pro-linuxpl.com:8080', // Adres prawdziwego serwera
+        target: 'http://185.180.205.31:8080', // Adres backendu
         changeOrigin: true,
         secure: false,
+        cookieDomainRewrite: 'localhost',
+        cookiePathRewrite: '/',
         rewrite: (path) => path.replace(/^\/api/, ''), // Usuwamy '/api' z początku ścieżki przed wysłaniem
       },
     },

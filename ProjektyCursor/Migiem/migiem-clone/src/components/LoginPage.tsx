@@ -83,6 +83,9 @@ export default function LoginPage() {
 
     } catch (err: any) {
       console.error("Błąd logowania:", err);
+      if (err.message?.includes('Konto nie ma dostępu do API kurierskiego')) {
+        setError(err.message);
+      } else 
       if (err.response?.status === 401 || err.response?.status === 403) {
         setError("Niepoprawny login lub hasło.");
       } else {

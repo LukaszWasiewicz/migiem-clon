@@ -195,18 +195,11 @@ const OrderPage: React.FC = () => {
 
       console.log("📥 Odpowiedź API:", response);
 
-      // --- FIX: RĘCZNE WYMUSZENIE WAYBILL ID ---
-      // Pobieramy waybill z odpowiedzi LUB ustawiamy sztuczny, jeśli go brak
-      let finalWaybill = response.waybill;
-
-      if (!finalWaybill) {
-        console.warn("⚠️ API zwróciło pusty waybill! Generuję ID testowe.");
-        // Generujemy losowy numer, żeby móc przejść dalej
-        finalWaybill = `TEST-${Math.floor(Math.random() * 10000)}`;
+      if (!response.waybill) {
+        throw new Error("Serwer nie zwrócił numeru listu przewozowego (waybill).");
       }
 
-      // Zapisujemy ten (prawdziwy lub sztuczny) numer do stanu
-      setCreatedWaybillId(finalWaybill);
+      setCreatedWaybillId(response.waybill);
       setOrderStatus('success');
 
     } catch (error: any) {
@@ -252,15 +245,6 @@ const OrderPage: React.FC = () => {
 
     } catch (err: any) {
       console.error("🔥 Błąd orderPickup:", err);
-
-      // --- SYMULACJA SUKCESU DLA TESTOWEGO ID ---
-      // To wykona się TYLKO jeśli walidacja godzin przeszła (jesteśmy w catch po próbie API),
-      // a błąd wynika z tego, że API nie przyjmuje ID typu "TEST-..."
-      if (createdWaybillId.startsWith('TEST-')) {
-        console.warn("⚠️ API odrzuciło fake ID (to normalne). Symuluję sukces dla UI.");
-        setTimeout(() => setPickupStatus('success'), 500);
-        return;
-      }
 
       // Obsługa błędu dla prawdziwych ID (np. awaria serwera)
       const msg = err.response?.data?.message || err.message || "Błąd podczas zamawiania podjazdu.";

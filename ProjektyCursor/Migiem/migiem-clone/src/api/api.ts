@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Adres z dokumentacji
-const API_URL = '/api/NewLogistic/v2';
+// Bazowy kontekst API dla aktualnego serwera
+const API_URL = '/api/4logistic/v2';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -10,6 +10,9 @@ export const api = axios.create({
   },
   withCredentials: true,
 });
+
+const normalizePostalCode = (value: string) => value.replace(/\D/g, '');
+
 // --- INTERCEPTOR BŁĘDÓW (NOWOŚĆ) ---
 // To sprawi, że jeśli API zwróci błąd 401 (np. token wygasł), 
 // użytkownik zostanie automatycznie przeniesiony do logowania.
@@ -67,8 +70,8 @@ export interface RegisterFormData {
 }
 
 export const registerUser = async (data: RegisterFormData) => {
-  // FIX: Usuwamy myślniki z kodu pocztowego
-  const cleanZip = data.zipCode.replace(/-/g, "");
+  // API oczekuje kodu bez separatorów
+  const cleanZip = normalizePostalCode(data.zipCode);
 
   const payload: RegisterRequest = {
     login: data.login,
@@ -102,10 +105,19 @@ export const loginUser = async (login: string, password: string): Promise<boolea
 
   console.log("👉 Status logowania:", response.status);
 
-  if (response.status === 200) {
-    return true;
+  if (response.status !== 200) {
+    return false;
   }
-  return false;
+
+  try {
+    await api.get('/address-book');
+    return true;
+  } catch (error: any) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      throw new Error('Konto nie ma dostępu do API kurierskiego. Skontaktuj się z administratorem DropSpot.');
+    }
+    throw error;
+  }
 };
 
 // 1. Interfejs odpowiedzi z endpointu /sender
@@ -167,6 +179,8 @@ export interface EstimatePackageItem {
 // Pola opcjonalne (?) domyślnie będą false/0
 export interface EstimateRequestData {
   packages: EstimatePackageItem[];
+  sender?: Record<string, unknown>;
+  receiver?: Record<string, unknown>;
   insurance?: number;
   taken?: number; // Pobranie
   receptionNotification?: boolean;
@@ -179,13 +193,14 @@ export interface EstimateRequestData {
   sms?: boolean;
   checkPackage?: boolean;
   adr?: boolean;
+  log?: boolean;
 }
 
 // 4. Pełna struktura wysyłana do API (strict)
 interface ApiEstimatePayload {
   packages: EstimatePackageItem[];
-  sender: Record<string, never>;   // {}
-  receiver: Record<string, never>; // {}
+  sender: Record<string, unknown>;
+  receiver: Record<string, unknown>;
   insurance: number;
   taken: number;
   receptionNotification: boolean;
@@ -198,6 +213,7 @@ interface ApiEstimatePayload {
   sms: boolean;
   checkPackage: boolean;
   adr: boolean;
+  log: boolean;
   thirdPart: boolean; // Zawsze false
 }
 
@@ -214,8 +230,8 @@ export const estimatePackage = async (data: EstimateRequestData): Promise<Courie
   // Mapujemy dane z formularza na pełny payload wymagany przez API
   const payload: ApiEstimatePayload = {
     packages: data.packages,
-    sender: {},   // Wymagane puste obiekty
-    receiver: {}, // Wymagane puste obiekty
+    sender: data.sender ?? {},
+    receiver: data.receiver ?? {},
     insurance: data.insurance ?? 0,
     taken: data.taken ?? 0,
     receptionNotification: data.receptionNotification ?? false,
@@ -228,6 +244,7 @@ export const estimatePackage = async (data: EstimateRequestData): Promise<Courie
     sms: data.sms ?? false,
     checkPackage: data.checkPackage ?? false,
     adr: data.adr ?? false,
+    log: data.log ?? false,
     thirdPart: false // Zawsze false wg dokumentacji
   };
 
@@ -293,7 +310,7 @@ export const sendPackage = async (data: SendPackageRequest): Promise<SendPackage
     isCompany: addr.isCompany,
     city: {                          // Zagnieżdżony obiekt
       cityName: addr.city,
-      zipCode: addr.postalCode,
+      zipCode: normalizePostalCode(addr.postalCode),
       country: "Polska"              // Hardcoded lub z addr.countryCode
     }
   });
@@ -383,59 +400,7 @@ const formatDateForApi = (date: Date): string => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-// --- MOCK DATA (Dane przykładowe) ---
-const MOCK_ORDERS: OrderHistoryItem[] = [
-  {
-    id: 1024,
-    waybill: "311926",
-    creationDate: "2025-01-20 14:30:00",
-    status: "created",
-    price: 159.00,
-    sender: {
-      name: "Jan",
-      surname: "Kowalski",
-      companyName: "Janex Sp. z o.o.",
-      city: "Warszawa"
-    },
-    receiver: {
-      name: "Anna",
-      surname: "Nowak",
-      companyName: "",
-      city: "Kraków"
-    }
-  },
-  {
-    id: 1023,
-    waybill: "GDN-2023-Y55",
-    creationDate: "2025-01-18 09:15:00",
-    status: "sent",
-    price: 45.50,
-    sender: {
-      name: "Piotr",
-      surname: "Zieliński",
-      companyName: "",
-      city: "Gdańsk"
-    },
-    receiver: {
-      name: "Firma Budowlana",
-      surname: "",
-      companyName: "BUD-MEX",
-      city: "Wrocław"
-    }
-  }
-];
-
 export const getOrdersHistory = async (page: number = 0): Promise<OrderHistoryItem[]> => {
-  // LOGIKA PAGINACJI DLA DANYCH TESTOWYCH:
-  // Jeśli jesteśmy na stronie innej niż 0 (pierwsza), a API nie działa,
-  // to zwracamy pustą listę, żeby użytkownik widział koniec tabeli.
-  if (page > 0) {
-      // Tu ewentualnie moglibyśmy pytać API, ale dla bezpieczeństwa UX przy mocku:
-      // Zakładamy, że mock ma tylko jedną stronę danych.
-      // Jeśli jednak chcesz sprawdzać API na dalszych stronach, usuń ten if.
-      // Ale przy obecnym zachowaniu backendu (puste tablice) to bezpieczniejsze.
-  }
-
   const dateFrom = new Date('2021-01-01 00:00:00');
   const dateTo = new Date('2030-12-31 23:59:59');
 
@@ -449,30 +414,8 @@ export const getOrdersHistory = async (page: number = 0): Promise<OrderHistoryIt
 
   console.log(`📜 FETCHING HISTORY (Page: ${page})`, JSON.stringify(payload));
 
-  try {
-    const response = await api.post<OrderHistoryItem[]>(`/report/${page}`, payload);
-    
-    // 1. Jeśli API zwróciło prawdziwe dane (niepustą tablicę) -> Używamy ich!
-    if (response.data && response.data.length > 0) {
-      console.log("✅ API zwróciło prawdziwe dane:", response.data);
-      return response.data;
-    } 
-    
-    // 2. Jeśli API zwróciło pustą tablicę ORAZ jesteśmy na pierwszej stronie (page === 0)
-    // to pokazujemy dane testowe, żeby tabela nie była smutna i pusta.
-    if (page === 0) {
-        console.warn("⚠️ API zwróciło pustą listę. Używam danych testowych (MOCK) dla strony 0.");
-        return MOCK_ORDERS;
-    }
-
-    // 3. W każdym innym przypadku (pusta odpowiedź API na stronie 1, 2...) zwracamy pustą tablicę.
-    return [];
-
-  } catch (error) {
-    console.error("❌ Błąd API historii. Używam danych testowych (MOCK).", error);
-    // W razie błędu sieci, na 1. stronie pokaż mocka, na kolejnych pusto
-    return page === 0 ? MOCK_ORDERS : [];
-  }
+  const response = await api.post<OrderHistoryItem[]>(`/report/${page}`, payload);
+  return response.data ?? [];
 };
 // --- DOSTĘPNOŚĆ ODBIORU (PICKUPS) ---
 // 1. Szczegóły pojedynczego "slotu" odbioru
@@ -488,9 +431,7 @@ export type PickupResponse = Record<string, PickupDetails>;
 
 // 3. Funkcja pobierająca dostępność
 export const getAvailablePickups = async (courier: string, zipCode: string): Promise<PickupResponse> => {
-  // Dla bezpieczeństwa czyścimy kod pocztowy z myślników, jeśli API tego wymaga
-  // (bazując na logice z registerUser)
-  const cleanZip = zipCode.replace(/-/g, "");
+  const cleanZip = normalizePostalCode(zipCode);
 
   console.log(`📅 Checking pickups for ${courier} at ${cleanZip}`);
 
@@ -560,41 +501,8 @@ export interface TrackingResponse {
 
 export const getPackageTracking = async (waybill: string): Promise<TrackingResponse> => {
   console.log(`🔎 Tracking request for: ${waybill}`);
-
-  // 1. Najpierw próbujemy prawdziwego API (jeśli istnieje taki endpoint)
-  // Zazwyczaj endpointy to /courier/tracker/{waybill} lub podobne.
-  try {
-    // UWAGA: To jest strzał "w ciemno" na podstawie konwencji API NewLogistic.
-    // Jeśli zwróci 404 lub 401, wpadniemy do catcha i obsłużymy to mockiem.
-    const response = await api.get<TrackingResponse>(`/courier/tracker/${waybill}`);
-    return response.data;
-  } catch (error) {
-    console.warn("⚠️ API trackingu niedostępne lub wymaga logowania. Używam danych MOCK.", error);
-    
-    // 2. SYMULACJA DANYCH (MOCK) - żeby strona działała bez logowania
-    // Opóźnienie dla realizmu
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // Generujemy różne scenariusze na podstawie końcówki numeru listu
-    const lastDigit = waybill.slice(-1);
-
-    if (lastDigit === '9') {
-        throw new Error("Nie znaleziono przesyłki o podanym numerze.");
-    }
-
-    // Scenariusz: Dostarczona
-    return {
-      waybill: waybill,
-      currentStatus: 'delivered',
-      events: [
-        { status: "Dostarczono", date: "2023-12-24 14:30", location: "Wrocław", description: "Odebrane przez: J. Kowalski" },
-        { status: "Wydano do doręczenia", date: "2023-12-24 08:15", location: "Wrocław", description: "Kurier: Michał" },
-        { status: "W transporcie", date: "2023-12-23 22:00", location: "Łódź", description: "Przesyłka w drodze do oddziału docelowego" },
-        { status: "Odebrano od nadawcy", date: "2023-12-23 16:20", location: "Warszawa", description: "Kurier odebrał paczkę" },
-        { status: "Zarejestrowano", date: "2023-12-23 10:00", location: "Warszawa", description: "Otrzymano dane elektroniczne" },
-      ]
-    };
-  }
+  const response = await api.get<TrackingResponse>(`/courier/tracker/${waybill}`);
+  return response.data;
 };
 
 // --- KSIĄŻKA ADRESOWA (ADDRESS BOOK) ---
@@ -630,6 +538,7 @@ export const getAddressBook = async (): Promise<AddressBookItem[]> => {
 // Wykorzystamy AddressData z formularza, ale musimy go przemapować na strukturę API
 export const addToAddressBook = async (data: AddressData): Promise<AddressBookItem> => {
   console.log("💾 Saving to address book...", data);
+  const cleanZip = normalizePostalCode(data.postalCode);
 
   const payload = {
     name: data.name,
@@ -643,7 +552,7 @@ export const addToAddressBook = async (data: AddressData): Promise<AddressBookIt
     nip: data.nip || "",
     city: {
       cityName: data.city,
-      zipCode: data.postalCode.replace(/-/g, ""), // Czyścimy kod pocztowy do formatu API
+      zipCode: cleanZip,
       country: "Polska"
     }
   };

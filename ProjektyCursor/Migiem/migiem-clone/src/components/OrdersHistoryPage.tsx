@@ -20,33 +20,15 @@ const OrdersHistoryPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // 1. Pobierz zamówienia kurierskie z API
+      // Pobierz zamówienia kurierskie z API
       const apiData = await getOrdersHistory(page);
-      const courierOrders = Array.isArray(apiData) ? apiData : [];
+      const serverOrders = Array.isArray(apiData) ? apiData : [];
 
-      // 2. Pobierz zamówienia materiałów z LocalStorage (tylko na 1 stronie, żeby nie duplikować przy paginacji API)
-      let materialOrders: any[] = [];
-      if (page === 0) {
-        const localData = localStorage.getItem('mock_orders');
-        if (localData) {
-          const parsed = JSON.parse(localData);
-          // Mapujemy dane lokalne, aby pasowały do struktury tabeli (np. date -> creationDate)
-          materialOrders = parsed.map((item: any) => ({
-            ...item,
-            waybill: item.id,      // ID zamówienia jako nr listu
-            creationDate: item.date, // Data
-            courier: 'MIGIER_SHOP',  // Wewnętrzny kod
-            isMaterial: true       // Flaga do rozpoznawania w UI
-          }));
-        }
-      }
-
-      // 3. Połącz listy (Materiały najpierw, potem API) i posortuj po dacie (od najnowszych)
-      const allOrders = [...materialOrders, ...courierOrders].sort((a, b) => 
+      const sortedOrders = serverOrders.sort((a, b) => 
         new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime()
       );
 
-      setOrders(allOrders);
+      setOrders(sortedOrders);
 
     } catch (err) {
       console.error("Błąd pobierania historii:", err);
@@ -63,10 +45,6 @@ const OrdersHistoryPage: React.FC = () => {
 
   const handleDownloadLabel = async (waybillId: string | null) => {
     if (!waybillId) return;
-    if (waybillId.startsWith('WAW-') || waybillId.startsWith('GDN-')) {
-      alert("To jest zamówienie testowe (demo). Nie posiada prawdziwej etykiety na serwerze kuriera.");
-      return;
-    }
 
     try {
       setDownloadingId(waybillId);
